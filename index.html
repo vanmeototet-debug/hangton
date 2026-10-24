@@ -45,10 +45,10 @@
 <body class="h-full font-sans antialiased text-slate-800 flex flex-col bg-ios-bg">
 
   <!-- Header -->
-  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe">
+  <header class="bg-white/85 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 pt-safe shadow-xs">
     <div class="px-4 py-3 flex items-center justify-between">
       <div>
-        <h1 class="text-xl font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm tồn kho</h1>
+        <h1 class="text-lg font-bold text-slate-900 tracking-tight" id="page-title">Sản phẩm tồn kho</h1>
         <p class="text-[11px] text-slate-400">Quản lý xả hàng & biếu tặng cuối tháng</p>
       </div>
       <div class="flex items-center gap-1">
@@ -69,7 +69,7 @@
   <div id="sheet-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl space-y-4">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+        <h3 class="font-bold text-base text-slate-900 flex items-center gap-2">
           <i data-lucide="file-spreadsheet" class="w-5 h-5 text-ios-green"></i> Google Sheets Online
         </h3>
         <button onclick="toggleSheetModal(false)" class="text-slate-400 hover:text-slate-600 p-1">
@@ -81,9 +81,391 @@
       </p>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">Google Web App URL</label>
-        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
+        <input type="text" id="sheet-url-input" placeholder="https://script.google.com/macros/s/..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-ios-green font-mono">
       </div>
       <div class="pt-2 space-y-2">
         <button onclick="saveSheetUrl()" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:opacity-90">
           <i data-lucide="check" class="w-4 h-4"></i> Lưu & Đồng bộ ngay
         </button>
+        <button onclick="toggleSheetModal(false)" class="w-full bg-slate-100 text-slate-700 font-medium py-2.5 rounded-xl text-xs">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 overflow-y-auto p-4 pb-28" id="app-content">
+    <!-- Nội dung sẽ được hiển thị ở đây -->
+  </main>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-30 pb-safe shadow-lg">
+    <div class="flex justify-around items-center h-16 px-1">
+      <button onclick="switchTab('inventory')" id="nav-inventory" class="flex-1 flex flex-col items-center justify-center py-1 text-ios-blue">
+        <i data-lucide="boxes" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Đồ Tồn Kho</span>
+      </button>
+      <button onclick="switchTab('clearance')" id="nav-clearance" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Bán Xả Hàng</span>
+      </button>
+      <button onclick="switchTab('giveaways')" id="nav-giveaways" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="gift" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Cho / Biếu Tặng</span>
+      </button>
+      <button onclick="switchTab('reports')" id="nav-reports" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400">
+        <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Báo Cáo</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- JS Logic -->
+  <script>
+    let db = {
+      items: [], 
+      sales: [],
+      giveaways: []
+    };
+
+    let googleSheetUrl = '';
+
+    function loadDB() {
+      const stored = localStorage.getItem('app_xakho_db');
+      if (stored) {
+        try {
+          db = JSON.parse(stored);
+          if (!db.items) db.items = [];
+          if (!db.sales) db.sales = [];
+          if (!db.giveaways) db.giveaways = [];
+        } catch(e) {
+          console.error("Lỗi đọc dữ liệu local", e);
+        }
+      }
+      googleSheetUrl = localStorage.getItem('app_xakho_sheet_url') || '';
+      if (googleSheetUrl) {
+        const urlInput = document.getElementById('sheet-url-input');
+        if(urlInput) urlInput.value = googleSheetUrl;
+        const sheetDot = document.getElementById('sheet-dot');
+        if(sheetDot) sheetDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+        fetchFromGoogleSheet();
+      } else {
+        switchTab(currentTab);
+      }
+    }
+
+    function saveDB() {
+      localStorage.setItem('app_xakho_db', JSON.stringify(db));
+      syncToGoogleSheet();
+    }
+
+    function syncToGoogleSheet() {
+      if (!googleSheetUrl) return;
+      let form = document.getElementById('hidden-sync-form');
+      if (!form) {
+        form = document.createElement('form');
+        form.id = 'hidden-sync-form';
+        form.method = 'POST';
+        form.action = googleSheetUrl;
+        form.target = 'hidden-iframe';
+        form.style.display = 'none';
+        
+        let input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.id = 'hidden-sync-payload';
+        form.appendChild(input);
+        
+        let iframe = document.createElement('iframe');
+        iframe.name = 'hidden-iframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
+      }
+      document.getElementById('hidden-sync-payload').value = JSON.stringify(db);
+      form.submit();
+    }
+
+    function fetchFromGoogleSheet() {
+      if (!googleSheetUrl) return;
+      const scriptId = 'jsonp-script';
+      let oldScript = document.getElementById(scriptId);
+      if (oldScript) oldScript.remove();
+
+      window.handleSheetData = function(data) {
+        if (data && data.items) {
+          db = data;
+          if (!db.items) db.items = [];
+          if (!db.sales) db.sales = [];
+          if (!db.giveaways) db.giveaways = [];
+          localStorage.setItem('app_xakho_db', JSON.stringify(db));
+          switchTab(currentTab);
+        }
+      };
+
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = googleSheetUrl + (googleSheetUrl.includes('?') ? '&' : '?') + 'callback=handleSheetData&t=' + Date.now();
+      document.body.appendChild(script);
+    }
+
+    function saveSheetUrl() {
+      const url = document.getElementById('sheet-url-input').value.trim();
+      if (!url) {
+        alert("Vui lòng nhập đường link Web App URL!");
+        return;
+      }
+      googleSheetUrl = url;
+      localStorage.setItem('app_xakho_sheet_url', googleSheetUrl);
+      const sheetDot = document.getElementById('sheet-dot');
+      if(sheetDot) sheetDot.className = 'absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full';
+      fetchFromGoogleSheet();
+      alert("Đã kết nối thành công với Google Sheets!");
+      toggleSheetModal(false);
+    }
+
+    function formatMoney(num) {
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num || 0);
+    }
+
+    function formatNum(num) {
+      return new Intl.NumberFormat('vi-VN').format(num || 0);
+    }
+
+    function getTodayString() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`; }  function toggleSheetModal(show) { const modal = document.getElementById('sheet-modal'); if (show) modal.classList.remove('hidden'); else modal.classList.add('hidden'); lucide.createIcons(); }  let currentTab = 'inventory';  function switchTab(tab) { currentTab = tab;  ['inventory', 'clearance', 'giveaways', 'reports'].forEach(t => { const btn = document.getElementById(`nav-${t}`);
+        if(btn) {
+          if (t === tab) {
+            btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-ios-blue';
+          } else {
+            btn.className = 'flex-1 flex flex-col items-center justify-center py-1 text-slate-400';
+          }
+        }
+      });
+
+      const titleEl = document.getElementById('page-title');
+      if (titleEl) {
+        if (tab === 'inventory') {
+          titleEl.innerText = 'Sản phẩm tồn kho';
+          renderInventory();
+        } else if (tab === 'clearance') {
+          titleEl.innerText = 'Nhật ký Bán xả hàng';
+          renderClearance();
+        } else if (tab === 'giveaways') {
+          titleEl.innerText = 'Nhật ký Cho / Biếu tặng';
+          renderGiveaways();
+        } else if (tab === 'reports') {
+          titleEl.innerText = 'Báo cáo Tổng hợp';
+          renderReports();
+        }
+      }
+
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // 1. INVENTORY TAB (KHAI BÁO TỒN KHO)
+    // ==========================================
+    function renderInventory() {
+      const container = document.getElementById('app-content');
+      if(!container) return;
+      
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-sm font-bold mb-3 flex items-center text-slate-800">
+            <i data-lucide="plus-circle" class="w-4 h-4 mr-2 text-ios-blue"></i> Khai báo mặt hàng tồn
+          </h2>
+          <form onsubmit="handleAddInventory(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Tên mặt hàng</label>
+              <input type="text" id="inv-name" required placeholder="VD: Nước giặt, Áo phông, Hạt điều..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Đơn vị tính</label>
+                <input type="text" id="inv-unit" required placeholder="Cái, Chai, Kg..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng tồn ban đầu</label>
+                <input type="number" step="any" id="inv-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Giá nhập/vốn mỗi ĐVT (VND)</label>
+              <input type="number" id="inv-cost" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+
+            <button type="submit" class="w-full bg-ios-blue text-white font-medium py-2.5 rounded-xl text-xs shadow-sm active:opacity-90">
+              Thêm Vào Danh Sách Tồn
+            </button>
+          </form>
+        </div>
+
+        <div class="space-y-3">
+          <h2 class="text-xs font-semibold text-slate-500 px-1">Danh sách tồn kho hiện tại (${db.items.length})</h2>
+      `;
+
+      if (db.items.length === 0) {
+        html += `
+          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <i data-lucide="package-search" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-xs">Chưa có đồ tồn kho nào được khai báo</p>
+          </div>
+        `;
+      } else {
+        db.items.forEach(item => {
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-start">
+              <div class="space-y-1">
+                <span class="font-bold text-slate-900 text-sm">${item.name}</span>
+                <div class="text-xs text-slate-500 space-y-0.5">
+                  <p>Tồn ban đầu: <b class="text-slate-700">${formatNum(item.initialQty \vert{}\vert{} item.importQty)}${item.unit}</b></p>
+                  <p>Giá vốn nhập: <b class="text-slate-700">${formatMoney(item.unitCost \vert{}\vert{} item.avgImportCost)} /${item.unit}</b></p>
+                </div>
+              </div>
+              <div class="text-right flex flex-col justify-between items-end h-full">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${item.currentStock > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}">
+                  Còn: ${formatNum(item.currentStock)}${item.unit}
+                </span>
+                <button onclick="deleteInventoryItem('${item.id}')" class="mt-4 text-slate-300 hover:text-ios-red p-1" title="Xóa mặt hàng">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    function handleAddInventory(e) {
+      e.preventDefault();
+      const name = document.getElementById('inv-name').value.trim();
+      const unit = document.getElementById('inv-unit').value.trim();
+      const initialQty = parseFloat(document.getElementById('inv-qty').value) || 0;
+      const unitCost = parseFloat(document.getElementById('inv-cost').value) || 0;
+
+      if (initialQty <= 0) {
+        alert("Số lượng tồn ban đầu phải lớn hơn 0!");
+        return;
+      }
+
+      let existing = db.items.find(i => i.name.toLowerCase() === name.toLowerCase());
+
+      if (existing) {
+        existing.initialQty = (existing.initialQty || existing.importQty || 0) + initialQty;
+        existing.currentStock += initialQty;
+        existing.unitCost = unitCost;
+        existing.unit = unit;
+      } else {
+        db.items.push({
+          id: 'I_' + Date.now(),
+          name,
+          unit,
+          initialQty,
+          unitCost,
+          currentStock: initialQty
+        });
+      }
+
+      saveDB();
+      renderInventory();
+      lucide.createIcons();
+    }
+
+    function deleteInventoryItem(id) {
+      if (confirm("Xóa mặt hàng này sẽ XÓA TOÀN BỘ lịch sử bán xả và biếu tặng liên quan. Bạn chắc chắn chứ?")) {
+        db.items = db.items.filter(i => i.id !== id);
+        db.sales = db.sales.filter(s => s.productId !== id && s.itemId !== id);
+        db.giveaways = db.giveaways.filter(g => g.productId !== id && g.itemId !== id);
+        saveDB();
+        renderInventory();
+        lucide.createIcons();
+      }
+    }
+
+    // ==========================================
+    // 2. CLEARANCE TAB (BÁN XẢ HÀNG)
+    // ==========================================
+    function renderClearance() {
+      const container = document.getElementById('app-content');
+      if(!container) return;
+
+      let itemOptions = db.items.map(i => 
+        `<option value="${i.id}">${i.name} - Tồn: ${formatNum(i.currentStock)}${i.unit}</option>`
+      ).join('');
+
+      let html = `
+        <div class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-100">
+          <h2 class="text-sm font-bold mb-3 flex items-center text-slate-800">
+            <i data-lucide="shopping-bag" class="w-4 h-4 mr-2 text-ios-green"></i> Ghi nhận Bán Xả Hàng
+          </h2>
+          <form onsubmit="handleAddSale(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Chọn Mặt Hàng Xả</label>
+              <select id="s-item-id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                <option value="">-- Chọn mặt hàng --</option>
+                ${itemOptions}
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Ngày bán</label>
+                <input type="date" id="s-date" value="${getTodayString()}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">Số lượng bán xả</label>
+                <input type="number" step="any" id="s-qty" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-500 mb-1">Tổng tiền thực thu (VND)</label>
+              <input type="number" id="s-revenue" required placeholder="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ios-blue">
+            </div>
+
+            <button type="submit" class="w-full bg-ios-green text-white font-medium py-2.5 rounded-xl text-xs shadow-sm active:opacity-90">
+              Xác Nhận Bán Xả
+            </button>
+          </form>
+        </div>
+
+        <div class="space-y-3">
+          <h2 class="text-xs font-semibold text-slate-500 px-1">Lịch sử bán xả</h2>
+      `;
+
+      const validSales = db.sales.filter(s => db.items.some(i => i.id === (s.productId || s.itemId)));
+
+      if (validSales.length === 0) {
+        html += `
+          <div class="text-center py-8 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+            <i data-lucide="receipt" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+            <p class="text-xs">Chưa có giao dịch bán xả nào</p>
+          </div>
+        `;
+      } else {
+        const sortedSales = [...validSales].reverse();
+        sortedSales.forEach(s => {
+          const pId = s.productId || s.itemId;
+          const item = db.items.find(i => i.id === pId);
+          if(!item) return;
+          const rev = s.totalRevenue !== undefined ? s.totalRevenue : s.revenue;
+          const prof = s.profit !== undefined ? s.profit : 0;
+          html += `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-center">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-slate-900 text-sm">${item.name}</span>
+                  <span class="text-[10px] text-slate-400">${s.date}</span>
+                </div>
+                <p class="text-xs text-slate-5
