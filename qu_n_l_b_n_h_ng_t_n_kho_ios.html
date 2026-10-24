@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Quản lý Bán hàng & Tồn kho</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ios: {
+                            blue: '#007AFF',
+                            green: '#34C759',
+                            red: '#FF3B30',
+                            orange: '#FF9500',
+                            gray: '#8E8E93',
+                            bg: '#F2F2F7',
+                            card: '#FFFFFF'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Standalone iOS PWA Feel */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        /* Smooth scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Safe area for iPhone notch & Home Indicator */
+        .pt-safe { padding-top: env(safe-area-inset-top, 12px); }
+        .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 65px); }
+        .bottom-safe { bottom: env(safe-area-inset-bottom, 0px); }
+
+        /* iOS Spring-like transitions */
+        .tab-content {
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+        }
+        .tab-content.hidden {
+            display: none;
+            opacity: 0;
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 font-sans antialiased bg-slate-100 flex flex-col justify-between">
+
+    <!-- TOP HEADER -->
+    <header class="sticky top-0 z-30 bg-slate-100/80 backdrop-blur-md pt-safe px-4 pb-3 border-b border-slate-200 flex justify-between items-center">
+        <div>
+            <span class="text-xs font-semibold text-ios-blue uppercase tracking-wider">iStock iOS</span>
+            <h1 id="header-title" class="text-2xl font-bold tracking-tight text-slate-900">Tổng quan</h1>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="openDataModal()" class="p-2 rounded-full bg-white shadow-sm border border-slate-200 text-slate-600 active:scale-95 transition-transform">
+                <i data-lucide="database" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 overflow-y-auto px-4 pt-3 pb-safe no-scrollbar">
+
+        <!-- TAB 1: DASHBOARD / BÁO CÁO -->
+        <section id="tab-dashboard" class="tab-content space-y-4">
+            <!-- Filter Time Bar -->
+            <div class="flex bg-slate-200/80 p-1 rounded-xl text-xs font-medium text-slate-600">
+                <button onclick="setDashboardFilter('today')" id="btn-filter-today" class="flex-1 py-1.5 rounded-lg text-center transition-all bg-white text-slate-900 shadow-sm font-semibold">Hôm nay</button>
+                <button onclick="setDashboardFilter('7days')" id="btn-filter-7days" class="flex-1 py-1.5 rounded-lg text-center transition-all">7 ngày qua</button>
+                <button onclick="setDashboardFilter('month')" id="btn-filter-month" class="flex-1 py-1.5 rounded-lg text-center transition-all">Tháng này</button>
+                <button onclick="setDashboardFilter('all')" id="btn-filter-all" class="flex-1 py-1.5 rounded-lg text-center transition-all">Tất cả</button>
+            </div>
+
+            <!-- Dashboard Stats Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-ios-green mb-2">
+                        <div class="p-2 bg-emerald-50 rounded-lg">
+                            <i data-lucide="trending-up" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500">Doanh thu</span>
+                    </div>
+                    <p id="dash-revenue" class="text-lg font-bold text-slate-900">0 đ</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-ios-orange mb-2">
+                        <div class="p-2 bg-amber-50 rounded-lg">
+                            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500">Tiền vốn bán</span>
+                    </div>
+                    <p id="dash-cogs" class="text-lg font-bold text-slate-900">0 đ</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-ios-blue mb-2">
+                        <div class="p-2 bg-blue-50 rounded-lg">
+                            <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500">Lợi nhuận (Lãi)</span>
+                    </div>
+                    <p id="dash-profit" class="text-lg font-bold text-ios-blue">0 đ</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div class="flex items-center space-x-2 text-purple-600 mb-2">
+                        <div class="p-2 bg-purple-50 rounded-lg">
+                            <i data-lucide="boxes" class="w-5 h-5"></i>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-500">Giá trị tồn kho</span>
+                    </div>
+                    <p id="dash-stock-value" class="text-lg font-bold text-slate-900">0 đ</p>
+                </div>
+            </div>
+
+            <!-- Quick Metrics -->
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Thông số nhanh</h3>
+                <div class="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span class="text-sm text-slate-600">Đơn bán thành công</span>
+                    <span id="dash-sales-count" class="text-sm font-semibold text-slate-900">0 đơn</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-slate-100">
+                    <span class="text-sm text-slate-600">Số lượt nhập hàng</span>
+                    <span id="dash-imports-count" class="text-sm font-semibold text-slate-900">0 lượt</span>
+                </div>
+                <div class="flex justify-between items-center py-1">
+                    <span class="text-sm text-slate-600">Sản phẩm sắp hết kho (&le; 10)</span>
+                    <span id="dash-low-stock-count" class="text-sm font-semibold text-ios-red">0 mặt hàng</span>
+                </div>
+            </div>
+
+            <!-- Recent Activity List -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Giao dịch mới nhất</h3>
+                <div id="dash-recent-list" class="space-y-2">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: PRODUCTS / TỒN KHO -->
+        <section id="tab-products" class="tab-content hidden space-y-3">
+            <!-- Search & Add Bar -->
+            <div class="flex space-x-2">
+                <div class="relative flex-1">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="product-search" oninput="renderProducts()" placeholder="Tìm tên hoặc mã SP..." class="w-full bg-white pl-9 pr-4 py-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                </div>
+                <button onclick="openProductModal()" class="bg-ios-blue text-white px-3.5 py-2.5 rounded-xl text-sm font-medium flex items-center space-x-1 shadow-sm active:scale-95 transition-transform">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Thêm</span>
+                </button>
+            </div>
+
+            <!-- Product List -->
+            <div id="product-list" class="space-y-2.5">
+                <!-- Dynamic Content -->
+            </div>
+        </section>
+
+        <!-- TAB 3: IMPORT / NHẬP HÀNG -->
+        <section id="tab-import" class="tab-content hidden space-y-4">
+            <!-- Import Form Card -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                    <i data-lucide="arrow-down-left" class="w-4 h-4 text-ios-blue"></i>
+                    <span>Lập Phiếu Nhập Hàng</span>
+                </h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Chọn sản phẩm *</label>
+                        <select id="import-product-select" onchange="onImportProductChange()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                            <!-- Dynamic Options -->
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Số lượng nhập *</label>
+                            <input type="number" id="import-qty" min="1" step="any" placeholder="0" oninput="calculateImportTotal()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Đơn giá nhập (đ) *</label>
+                            <input type="number" id="import-price" min="0" step="500" placeholder="0" oninput="calculateImportTotal()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Ghi chú / Nhà cung cấp</label>
+                        <input type="text" id="import-note" placeholder="Ví dụ: Nhập kho Chợ Đầu Mối" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-blue">
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                        <span class="text-xs text-slate-500">Tổng tiền nhập:</span>
+                        <span id="import-total-preview" class="text-base font-bold text-ios-blue">0 đ</span>
+                    </div>
+
+                    <button onclick="submitImport()" class="w-full bg-ios-blue text-white py-3 rounded-xl font-semibold text-sm shadow-md active:scale-98 transition-transform flex items-center justify-center space-x-2">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Xác Nhận Nhập Kho</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Import History -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Lịch sử nhập hàng</h3>
+                <div id="import-history-list" class="space-y-2">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: EXPORT / BÁN HÀNG -->
+        <section id="tab-export" class="tab-content hidden space-y-4">
+            <!-- Export Form Card -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                    <i data-lucide="arrow-up-right" class="w-4 h-4 text-ios-green"></i>
+                    <span>Tạo Đơn Bán Hàng</span>
+                </h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Chọn sản phẩm xuất bán *</label>
+                        <select id="export-product-select" onchange="onExportProductChange()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-green">
+                            <!-- Dynamic Options -->
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Số lượng bán *</label>
+                            <input type="number" id="export-qty" min="1" step="any" placeholder="0" oninput="calculateExportTotal()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-green">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Đơn giá bán thực tế (đ) *</label>
+                            <input type="number" id="export-price" min="0" step="500" placeholder="0" oninput="calculateExportTotal()" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-green">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Tên khách hàng / Ghi chú</label>
+                        <input type="text" id="export-note" placeholder="Ví dụ: Anh Nam - Bán lẻ" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:outline-none focus:ring-2 focus:ring-ios-green">
+                    </div>
+
+                    <!-- Profit Preview Bar -->
+                    <div class="bg-slate-50 p-3 rounded-xl space-y-1.5 text-xs">
+                        <div class="flex justify-between text-slate-600">
+                            <span>Thành tiền:</span>
+                            <span id="export-total-preview" class="font-semibold text-slate-900">0 đ</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Tiền vốn tương ứng:</span>
+                            <span id="export-cost-preview" class="font-medium text-slate-500">0 đ</span>
+                        </div>
+                        <div class="flex justify-between pt-1 border-t border-slate-200 font-bold">
+                            <span>Ước tính Lợi Nhuận:</span>
+                            <span id="export-profit-preview" class="text-ios-green">0 đ</span>
+                        </div>
+                    </div>
+
+                    <button onclick="submitExport()" class="w-full bg-ios-green text-white py-3 rounded-xl font-semibold text-sm shadow-md active:scale-98 transition-transform flex items-center justify-center space-x-2">
+                        <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+                        <span>Hoàn Thành Bán Hàng</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Export History -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">Lịch sử đơn xuất bán</h3>
+                <div id="export-history-list" class="space-y-2">
+                    <!-- Dynamic Items -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BOTTOM TAB BAR (iOS NAVIGATION) -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-lg border-t border-slate-200 px-3 py-2 flex justify-around items-center text-slate-400">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center space-y-1 text-ios-blue">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Tổng quan</span>
+        </button>
+        <button onclick="switchTab('products')" id="nav-products" class="flex flex-col items-center space-y-1">
+            <i data-lucide="package" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Sản phẩm</span>
+        </button>
+        <button onclick="switchTab('import')" id="nav-import" class="flex flex-col items-center space-y-1">
+            <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Nhập hàng</span>
+        </button>
+        <button onclick="switchTab('export')" id="nav-export" class="flex flex-col items-center space-y-1">
+            <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+            <span class="text-[10px] font-medium">Bán hàng</span>
+        </button>
+    </nav>
+
+    <!-- MODAL: ADD / EDIT PRODUCT -->
+    <div id="product-modal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center hidden transition-opacity">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-xl transform transition-transform">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 id="product-modal-title" class="font-bold text-slate-900 text-lg">Thêm Sản Phẩm Mới</h3>
+                <button onclick="closeProductModal()" class="text-slate-400 p-1 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="product-form" onsubmit="saveProduct(event)" class="space-y-3">
+                <input type="hidden" id="product-id">
+                
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Tên sản phẩm *</label>
+                    <input type="text" id="prod-name" required placeholder="Ví dụ: Gạo Tám Thơm, Cam Sành..." class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:ring-2 focus:ring-ios-blue outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Đơn vị tính *</label>
+                        <select id="prod-unit" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:ring-2 focus:ring-ios-blue outline-none">
+                            <option value="kg">kg (Kilogram)</option>
+                            <option value="túi">túi</option>
+                            <option value="bao">bao</option>
+                            <option value="cái">cái</option>
+                            <option value="hộp">hộp</option>
+                            <option value="lốc">lốc</option>
+                            <option value="thùng">thùng</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Tồn kho ban đầu</label>
+                        <input type="number" id="prod-stock" min="0" step="any" placeholder="0" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:ring-2 focus:ring-ios-blue outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Giá nhập gợi ý (đ)</label>
+                        <input type="number" id="prod-import-price" min="0" step="500" placeholder="0" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:ring-2 focus:ring-ios-blue outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 mb-1">Giá bán gợi ý (đ)</label>
+                        <input type="number" id="prod-export-price" min="0" step="500" placeholder="0" class="w-full bg-slate-50 p-2.5 rounded-xl text-sm border border-slate-200 focus:ring-2 focus:ring-ios-blue outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex space-x-2">
+                    <button type="button" onclick="closeProductModal()" class="w-1/2 bg-slate-100 text-slate-600 py-3 rounded-xl font-medium text-sm">Hủy</button>
+                    <button type="submit" class="w-1/2 bg-ios-blue text-white py-3 rounded-xl font-medium text-sm shadow-md">Lưu Sản Phẩm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: DATA MANAGEMENT (EXPORT / IMPORT JSON) -->
+    <div id="data-modal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center hidden">
+        <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-lg">Quản lý Dữ liệu</h3>
+                <button onclick="closeDataModal()" class="text-slate-400 p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-sm">
+                <p class="text-slate-500 text-xs">Dữ liệu hiện tại được lưu tự động trong bộ nhớ máy (localStorage).</p>
+                
+                <button onclick="exportDataJSON()" class="w-full border border-slate-200 bg-slate-50 text-slate-800 p-3 rounded-xl flex items-center justify-between font-medium active:bg-slate-100">
+                    <span class="flex items-center space-x-2">
+                        <i data-lucide="download" class="w-4 h-4 text-ios-blue"></i>
+                        <span>Xuất dữ liệu ra file (Backup JSON)</span>
+                    </span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+
+                <label class="w-full border border-slate-200 bg-slate-50 text-slate-800 p-3 rounded-xl flex items-center justify-between font-medium cursor-pointer active:bg-slate-100">
+                    <span class="flex items-center space-x-2">
+                        <i data-lucide="upload" class="w-4 h-4 text-ios-green"></i>
+                        <span>Nhập dữ liệu từ file JSON</span>
+                    </span>
+                    <input type="file" id="import-json-file" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </label>
+
+                <button onclick="resetToSampleData()" class="w-full border border-red-200 bg-red-50 text-ios-red p-3 rounded-xl flex items-center justify-between font-medium active:bg-red-100">
+                    <span class="flex items-center space-x-2">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span>Khôi phục Dữ liệu mẫu ban đầu</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-full text-xs font-medium shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-4">
+        <i data-lucide="info" class="w-4 h-4 text-ios-blue" id="toast-icon"></i>
+        <span id="toast-message">Thông báo</span>
+    </div>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        // Sample Initial Data (Nông sản / Hàng hóa thực tế)
+        const SAMPLE_PRODUCTS = [
+            { id: 'p1', name: 'Gạo Tám Thơm ST25', unit: 'kg', stock: 120, importPrice: 22000, exportPrice: 28000 },
+            { id: 'p2', name: 'Cam Sành Tiền Giang', unit: 'kg', stock: 45, importPrice: 18000, exportPrice: 25000 },
+            { id: 'p3', name: 'Táo Red Delicious', unit: 'kg', stock: 8, importPrice: 45000, exportPrice: 65000 },
+            { id: 'p4', name: 'Trà Oolong Cao Cấp', unit: 'hộp', stock: 25, importPrice: 110000, exportPrice: 160000 },
+            { id: 'p5', name: 'Thịt Bò Mỹ Cắt Sẵn', unit: 'túi', stock: 15, importPrice: 190000, exportPrice: 250000 }
+        ];
+
+        const SAMPLE_IMPORTS = [
+            { id: 'imp-1', productId: 'p1', qty: 100, price: 22000, total: 2200000, date: new Date(Date.now() - 86400000 * 3).toISOString(), note: 'Nhập từ Kho Miền Tây' },
+            { id: 'imp-2', productId: 'p2', qty: 50, price: 18000, total: 900000, date: new Date(Date.now() - 86400000 * 2).toISOString(), note: 'Nhập nhà vườn' }
+        ];
+
+        const SAMPLE_EXPORTS = [
+            { id: 'exp-1', productId: 'p1', qty: 10, price: 28000, total: 280000, costPrice: 22000, profit: 60000, date: new Date(Date.now() - 86400000 * 1).toISOString(), note: 'Khách lẻ - Chị Mai' },
+            { id: 'exp-2', productId: 'p2', qty: 5, price: 25000, total: 125000, costPrice: 18000, profit: 35000, date: new Date().toISOString(), note: 'Giao tận nơi' }
+        ];
+
+        // Global State variables
+        let products = [];
+        let imports = [];
+        let exports = [];
+        let activeTab = 'dashboard';
+        let dashboardFilter = 'today';
+
+        // Initialize Application
+        window.onload = function() {
+            loadData();
+            lucide.createIcons();
+            switchTab('dashboard');
+        };
+
+        // Data Storage Handlers
+        function loadData() {
+            const storedProducts = localStorage.getItem('iStock_products');
+            const storedImports = localStorage.getItem('iStock_imports');
+            const storedExports = localStorage.getItem('iStock_exports');
+
+            if (storedProducts && storedImports && storedExports) {
+                products = JSON.parse(storedProducts);
+                imports = JSON.parse(storedImports);
+                exports = JSON.parse(storedExports);
+            } else {
+                // First time load sample data
+                products = [...SAMPLE_PRODUCTS];
+                imports = [...SAMPLE_IMPORTS];
+                exports = [...SAMPLE_EXPORTS];
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('iStock_products', JSON.stringify(products));
+            localStorage.setItem('iStock_imports', JSON.stringify(imports));
+            localStorage.setItem('iStock_exports', JSON.stringify(exports));
+        }
+
+        // Navigation Tabs Controller
+        function switchTab(tabId) {
+            activeTab = tabId;
+            
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Show selected tab
+            const target = document.getElementById(`tab-${tabId}`);
+            if(target) target.classList.remove('hidden');
+
+            // Update Tab Bar Active Style
+            const navButtons = ['dashboard', 'products', 'import', 'export'];
+            navButtons.forEach(id => {
+                const btn = document.getElementById(`nav-${id}`);
+                if (id === tabId) {
+                    btn.className = "flex flex-col items-center space-y-1 text-ios-blue font-semibold scale-105 transition-all";
+                } else {
+                    btn.className = "flex flex-col items-center space-y-1 text-slate-400 hover:text-slate-600 transition-all";
+                }
+            });
+
+            // Update Header Title
+            const titles = {
+                dashboard: 'Tổng quan',
+                products: 'Danh mục Sản phẩm',
+                import: 'Nhập hàng',
+                export: 'Xuất bán hàng'
+            };
+            document.getElementById('header-title').innerText = titles[tabId];
+
+            // Render view-specific content
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'products') renderProducts();
+            if (tabId === 'import') renderImportTab();
+            if (tabId === 'export') renderExportTab();
+
+            // Refresh icons dynamically
+            lucide.createIcons();
+        }
+
+        // Formatters
+        function formatVND(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0).replace('₫', 'đ');
+        }
+
+        function formatDate(isoStr) {
+            const date = new Date(isoStr);
+            return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Toast Notification Helper
+        function showToast(msg, icon = 'check-circle') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = msg;
+            toastIcon.setAttribute('data-lucide', icon);
+            lucide.createIcons();
+
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 2300);
+        }
+
+        // --- 1. DASHBOARD LOGIC ---
+        function setDashboardFilter(filter) {
+            dashboardFilter = filter;
+            const filters = ['today', '7days', 'month', 'all'];
+            filters.forEach(f => {
+                const btn = document.getElementById(`btn-filter-${f}`);
+                if (f === filter) {
+                    btn.className = "flex-1 py-1.5 rounded-lg text-center transition-all bg-white text-slate-900 shadow-sm font-semibold";
+                } else {
+                    btn.className = "flex-1 py-1.5 rounded-lg text-center transition-all text-slate-500";
+                }
+            });
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            const now = new Date();
+            let startDate = new Date(0);
+
+            if (dashboardFilter === 'today') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            } else if (dashboardFilter === '7days') {
+                startDate = new Date(now.getTime() - 7 * 86400000);
+            } else if (dashboardFilter === 'month') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            }
+
+            // Filter exports within timeframe
+            const filteredExports = exports.filter(e => new Date(e.date) >= startDate);
+            const filteredImports = imports.filter(i => new Date(i.date) >= startDate);
+
+            const revenue = filteredExports.reduce((sum, e) => sum + e.total, 0);
+            const cogs = filteredExports.reduce((sum, e) => sum + (e.costPrice * e.qty), 0);
+            const profit = revenue - cogs;
+
+            // Total stock inventory value
+            const totalStockValue = products.reduce((sum, p) => sum + (p.stock * p.importPrice), 0);
+            const lowStockCount = products.filter(p => p.stock <= 10).length;
+
+            document.getElementById('dash-revenue').innerText = formatVND(revenue);
+            document.getElementById('dash-cogs').innerText = formatVND(cogs);
+            document.getElementById('dash-profit').innerText = formatVND(profit);
+            document.getElementById('dash-stock-value').innerText = formatVND(totalStockValue);
+
+            document.getElementById('dash-sales-count').innerText = `${filteredExports.length} đơn`;
+            document.getElementById('dash-imports-count').innerText = `${filteredImports.length} lượt`;
+            document.getElementById('dash-low-stock-count').innerText = `${lowStockCount} mặt hàng`;
+
+            // Recent activity list (combined & sorted)
+            const activities = [
+                ...exports.map(e => ({ ...e, type: 'export' })),
+                ...imports.map(i => ({ ...i, type: 'import' }))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+            const recentListEl = document.getElementById('dash-recent-list');
+            if (activities.length === 0) {
+                recentListEl.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">Chưa có giao dịch nào.</p>`;
+                return;
+            }
+
+            recentListEl.innerHTML = activities.map(act => {
+                const prod = products.find(p => p.id === act.productId) || { name: 'Sản phẩm đã xóa', unit: '' };
+                const isExport = act.type === 'export';
+
+                return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 rounded-xl ${isExport ? 'bg-emerald-50 text-ios-green' : 'bg-blue-50 text-ios-blue'}">
+                                <i data-lucide="${isExport ? 'arrow-up-right' : 'arrow-down-left'}" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-slate-900">${prod.name}</p>
+                                <p class="text-slate-400 text-[10px]">${formatDate(act.date)} • ${isExport ? 'Bán' : 'Nhập'}: ${act.qty} ${prod.unit}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold ${isExport ? 'text-ios-green' : 'text-slate-800'}">${isExport ? '+' : '-'}${formatVND(act.total)}</p>
+                            ${isExport ? `<p class="text-[10px] text-ios-blue font-medium">Lãi: +${formatVND(act.profit)}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        // --- 2. PRODUCTS / INVENTORY LOGIC ---
+        function renderProducts() {
+            const query = document.getElementById('product-search').value.toLowerCase();
+            const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+            const container = document.getElementById('product-list');
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Không tìm thấy sản phẩm nào.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <h4 class="font-bold text-slate-900 text-sm">${p.name}</h4>
+                            <span class="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium">${p.unit}</span>
+                        </div>
+                        <div class="flex space-x-3 text-xs text-slate-500">
+                            <span>Vốn: <b class="text-slate-700">${formatVND(p.importPrice)}</b></span>
+                            <span>Bán: <b class="text-slate-700">${formatVND(p.exportPrice)}</b></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="text-right">
+                            <span class="block text-[10px] text-slate-400 uppercase font-semibold">Tồn kho</span>
+                            <span class="text-sm font-bold ${p.stock <= 10 ? 'text-ios-red' : 'text-slate-900'}">${p.stock} ${p.unit}</span>
+                        </div>
+                        <button onclick="openProductModal('${p.id}')" class="p-2 text-slate-400 hover:text-ios-blue active:scale-90 transition-transform">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function openProductModal(productId = null) {
+            const modal = document.getElementById('product-modal');
+            const title = document.getElementById('product-modal-title');
+            
+            if (productId) {
+                const p = products.find(prod => prod.id === productId);
+                title.innerText = 'Chỉnh sửa Sản Phẩm';
+                document.getElementById('product-id').value = p.id;
+                document.getElementById('prod-name').value = p.name;
+                document.getElementById('prod-unit').value = p.unit;
+                document.getElementById('prod-stock').value = p.stock;
+                document.getElementById('prod-import-price').value = p.importPrice;
+                document.getElementById('prod-export-price').value = p.exportPrice;
+            } else {
+                title.innerText = 'Thêm Sản Phẩm Mới';
+                document.getElementById('product-form').reset();
+                document.getElementById('product-id').value = '';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function saveProduct(e) {
+            e.preventDefault();
+            const id = document.getElementById('product-id').value;
+            const name = document.getElementById('prod-name').value.trim();
+            const unit = document.getElementById('prod-unit').value;
+            const stock = parseFloat(document.getElementById('prod-stock').value) || 0;
+            const importPrice = parseFloat(document.getElementById('prod-import-price').value) || 0;
+            const exportPrice = parseFloat(document.getElementById('prod-export-price').value) || 0;
+
+            if (id) {
+                // Update
+                const index = products.findIndex(p => p.id === id);
+                if (index !== -1) {
+                    products[index] = { ...products[index], name, unit, stock, importPrice, exportPrice };
+                    showToast('Đã cập nhật sản phẩm');
+                }
+            } else {
+                // Add New
+                const newProduct = {
+                    id: 'p-' + Date.now(),
+                    name,
+                    unit,
+                    stock,
+                    importPrice,
+                    exportPrice
+                };
+                products.push(newProduct);
+                showToast('Đã thêm sản phẩm mới');
+            }
+
+            saveData();
+            closeProductModal();
+            renderProducts();
+        }
+
+        // --- 3. IMPORT / NHẬP HÀNG LOGIC ---
+        function renderImportTab() {
+            const select = document.getElementById('import-product-select');
+            select.innerHTML = products.map(p => `
+                <option value="${p.id}">${p.name} (Tồn hiện tại: ${p.stock} ${p.unit})</option>
+            `).join('');
+
+            onImportProductChange();
+            renderImportHistory();
+        }
+
+        function onImportProductChange() {
+            const prodId = document.getElementById('import-product-select').value;
+            const prod = products.find(p => p.id === prodId);
+            if (prod) {
+                document.getElementById('import-price').value = prod.importPrice;
+                calculateImportTotal();
+            }
+        }
+
+        function calculateImportTotal() {
+            const qty = parseFloat(document.getElementById('import-qty').value) || 0;
+            const price = parseFloat(document.getElementById('import-price').value) || 0;
+            document.getElementById('import-total-preview').innerText = formatVND(qty * price);
+        }
+
+        function submitImport() {
+            const productId = document.getElementById('import-product-select').value;
+            const qty = parseFloat(document.getElementById('import-qty').value);
+            const price = parseFloat(document.getElementById('import-price').value);
+            const note = document.getElementById('import-note').value.trim();
+
+            if (!productId || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
+                showToast('Vui lòng nhập đầy đủ số lượng và giá hợp lệ', 'alert-circle');
+                return;
+            }
+
+            const total = qty * price;
+            const newImport = {
+                id: 'imp-' + Date.now(),
+                productId,
+                qty,
+                price,
+                total,
+                date: new Date().toISOString(),
+                note
+            };
+
+            // Update Product Stock & Default Import Price
+            const prodIndex = products.findIndex(p => p.id === productId);
+            if (prodIndex !== -1) {
+                products[prodIndex].stock += qty;
+                products[prodIndex].importPrice = price; // Cập nhật giá nhập mới nhất
+            }
+
+            imports.unshift(newImport);
+            saveData();
+
+            // Reset form inputs
+            document.getElementById('import-qty').value = '';
+            document.getElementById('import-note').value = '';
+            calculateImportTotal();
+
+            showToast('Đã lưu phiếu nhập hàng & cộng tồn kho');
+            renderImportTab();
+        }
+
+        function renderImportHistory() {
+            const container = document.getElementById('import-history-list');
+            if (imports.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">Chưa có phiếu nhập nào.</p>`;
+                return;
+            }
+
+            container.innerHTML = imports.slice(0, 10).map(imp => {
+                const prod = products.find(p => p.id === imp.productId) || { name: 'Đã xóa', unit: '' };
+                return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                        <div>
+                            <p class="font-bold text-slate-900">${prod.name}</p>
+                            <p class="text-slate-400 text-[10px]">${formatDate(imp.date)} ${imp.note ? '• ' + imp.note : ''}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-ios-blue">+${imp.qty} ${prod.unit}</p>
+                            <p class="text-[10px] text-slate-500">${formatVND(imp.price)}/ĐV • Tổng: ${formatVND(imp.total)}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 4. EXPORT / BÁN HÀNG LOGIC ---
+        function renderExportTab() {
+            const select = document.getElementById('export-product-select');
+            select.innerHTML = products.map(p => `
+                <option value="${p.id}">${p.name} (Khả dụng: ${p.stock} ${p.unit})</option>
+            `).join('');
+
+            onExportProductChange();
+            renderExportHistory();
+        }
+
+        function onExportProductChange() {
+            const prodId = document.getElementById('export-product-select').value;
+            const prod = products.find(p => p.id === prodId);
+            if (prod) {
+                document.getElementById('export-price').value = prod.exportPrice;
+                calculateExportTotal();
+            }
+        }
+
+        function calculateExportTotal() {
+            const prodId = document.getElementById('export-product-select').value;
+            const prod = products.find(p => p.id === prodId);
+            const qty = parseFloat(document.getElementById('export-qty').value) || 0;
+            const price = parseFloat(document.getElementById('export-price').value) || 0;
+
+            const total = qty * price;
+            const cost = prod ? qty * prod.importPrice : 0;
+            const profit = total - cost;
+
+            document.getElementById('export-total-preview').innerText = formatVND(total);
+            document.getElementById('export-cost-preview').innerText = formatVND(cost);
+            
+            const profitEl = document.getElementById('export-profit-preview');
+            profitEl.innerText = formatVND(profit);
+            profitEl.className = profit >= 0 ? 'text-ios-green font-bold' : 'text-ios-red font-bold';
+        }
+
+        function submitExport() {
+            const productId = document.getElementById('export-product-select').value;
+            const qty = parseFloat(document.getElementById('export-qty').value);
+            const price = parseFloat(document.getElementById('export-price').value);
+            const note = document.getElementById('export-note').value.trim();
+
+            const prodIndex = products.findIndex(p => p.id === productId);
+            if (prodIndex === -1) return;
+
+            const prod = products[prodIndex];
+
+            if (!productId || isNaN(qty) || qty <= 0 || isNaN(price) || price < 0) {
+                showToast('Vui lòng điền đúng số lượng và đơn giá bán', 'alert-circle');
+                return;
+            }
+
+            if (qty > prod.stock) {
+                showToast(`Không đủ hàng tồn kho! Hiện chỉ còn ${prod.stock} ${prod.unit}`, 'alert-circle');
+                return;
+            }
+
+            const total = qty * price;
+            const costPrice = prod.importPrice;
+            const profit = total - (qty * costPrice);
+
+            const newExport = {
+                id: 'exp-' + Date.now(),
+                productId,
+                qty,
+                price,
+                costPrice,
+                total,
+                profit,
+                date: new Date().toISOString(),
+                note
+            };
+
+            // Deduct Stock
+            products[prodIndex].stock -= qty;
+
+            exports.unshift(newExport);
+            saveData();
+
+            // Reset inputs
+            document.getElementById('export-qty').value = '';
+            document.getElementById('export-note').value = '';
+            calculateExportTotal();
+
+            showToast('Tạo đơn bán hàng thành công!');
+            renderExportTab();
+        }
+
+        function renderExportHistory() {
+            const container = document.getElementById('export-history-list');
+            if (exports.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">Chưa có đơn xuất bán nào.</p>`;
+                return;
+            }
+
+            container.innerHTML = exports.slice(0, 10).map(exp => {
+                const prod = products.find(p => p.id === exp.productId) || { name: 'Đã xóa', unit: '' };
+                return `
+                    <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-xs">
+                        <div>
+                            <p class="font-bold text-slate-900">${prod.name}</p>
+                            <p class="text-slate-400 text-[10px]">${formatDate(exp.date)} ${exp.note ? '• ' + exp.note : ''}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-ios-green">+${formatVND(exp.total)}</p>
+                            <p class="text-[10px] text-slate-500">Đã bán: ${exp.qty} ${prod.unit} • Lãi: <b class="text-ios-blue">${formatVND(exp.profit)}</b></p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 5. DATA IMPORT / EXPORT JSON & SAMPLE RESTORE ---
+        function openDataModal() {
+            document.getElementById('data-modal').classList.remove('hidden');
+        }
+
+        function closeDataModal() {
+            document.getElementById('data-modal').classList.add('hidden');
+        }
+
+        function exportDataJSON() {
+            const fullData = {
+                products,
+                imports,
+                exports,
+                exportedAt: new Date().toISOString()
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(fullData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `iStock_Backup_${new Date().toISOString().slice(0, 10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast('Đã xuất file lưu trữ JSON');
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.products && parsed.imports && parsed.exports) {
+                        products = parsed.products;
+                        imports = parsed.imports;
+                        exports = parsed.exports;
+                        saveData();
+                        closeDataModal();
+                        switchTab(activeTab);
+                        showToast('Đã khôi phục dữ liệu từ JSON');
+                    } else {
+                        showToast('Cấu trúc file JSON không hợp lệ!', 'alert-circle');
+                    }
+                } catch (err) {
+                    showToast('Lỗi đọc file JSON!', 'alert-circle');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetToSampleData() {
+            if (confirm('Bạn có chắc chắn muốn khôi phục lại dữ liệu mẫu ban đầu? Toàn bộ thay đổi hiện tại sẽ bị ghi đè.')) {
+                products = [...SAMPLE_PRODUCTS];
+                imports = [...SAMPLE_IMPORTS];
+                exports = [...SAMPLE_EXPORTS];
+                saveData();
+                closeDataModal();
+                switchTab(activeTab);
+                showToast('Đã đặt lại dữ liệu mẫu');
+            }
+        }
+    </script>
+</body>
+</html>
